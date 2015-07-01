@@ -1,0 +1,25 @@
+set ANSI_NULLS ON
+set QUOTED_IDENTIFIER ON
+go
+
+ALTER PROCEDURE [dbo].[pbinv_historial_inventario]
+
+@id_detalle_item_inventario_preventa integer
+
+AS
+
+declare @id_detalle_item_inventario_preventa_padre integer
+
+select @id_detalle_item_inventario_preventa_padre = id_detalle_item_inventario_preventa_padre 
+from detalle_item_inventario_preventa 
+where id_detalle_item_inventario_preventa = @id_detalle_item_inventario_preventa
+
+BEGIN
+
+select fecha_disponible_distribuidora, cantidad_piezas
+from detalle_item_inventario_preventa	
+where id_detalle_item_inventario_preventa_padre = @id_detalle_item_inventario_preventa_padre
+and id_detalle_item_inventario_preventa <> @id_detalle_item_inventario_preventa
+order by  fecha_disponible_distribuidora
+
+END

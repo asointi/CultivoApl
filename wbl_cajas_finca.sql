@@ -1,0 +1,30 @@
+USE [BD_Nf]
+GO
+/****** Object:  StoredProcedure [dbo].[wbl_cajas_finca]    Script Date: 11/13/2007 12:52:36 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[wbl_cajas_finca]
+
+@FARMIN INT
+
+AS
+BEGIN
+
+SELECT DISTINCT TIPO_CAJA.IDC_TIPO_CAJA, 
+CAJA.IDC_CAJA, 
+CAJA.NOMBRE_CAJA AS NOMBRETICA, 
+tipo_flor.ID_TIPO_FLOR AS LLAVETIF, 
+CAJA.ID_CAJA AS ID_CAJA 
+FROM CAJA, PRODUCTO_FARM, TIPO_CAJA, tipo_flor
+WHERE CAJA.ID_CAJA=PRODUCTO_FARM.ID_CAJA 
+AND TIPO_CAJA.ID_TIPO_CAJA=CAJA.ID_TIPO_CAJA 
+AND PRODUCTO_FARM.ID_FARM = @FARMIN
+AND TIPO_CAJA.DISPONIBLE = 1
+--and caja.disponible = 1
+and tipo_flor.disponible = 1
+and producto_farm.id_tipo_flor = tipo_flor.id_tipo_flor
+ORDER BY NOMBRETICA ASC
+
+END

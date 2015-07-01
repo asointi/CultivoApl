@@ -1,0 +1,298 @@
+set ANSI_NULLS ON
+set QUOTED_IDENTIFIER ON
+go
+
+alter PROCEDURE [dbo].[na_consulta_orden_pedido_version9]
+
+@fecha_inicial nvarchar(15),
+@fecha_final nvarchar(15),
+@idc_cliente_inicial nvarchar(20),
+@idc_cliente_final nvarchar(20),
+@idc_orden_pedido nvarchar(20),
+@idc_farm_inicial nvarchar(3),
+@idc_farm_final nvarchar(3),
+@idc_tipo_factura_inicial nvarchar(2),
+@idc_tipo_factura_final nvarchar(2),
+@id_tipo_venta_inicial nvarchar(2),
+@id_tipo_venta_final nvarchar(2),
+@disponible bit
+
+as
+
+select max(id_solicitud_confirmacion_orden_especial) as id_solicitud_confirmacion_orden_especial,
+id_solicitud_confirmacion_orden_especial_padre into #solicitud_confirmacion_orden_especial
+from solicitud_confirmacion_orden_especial
+group by id_solicitud_confirmacion_orden_especial_padre
+
+select max(id_item_orden_sin_aprobar) as id_item_orden_sin_aprobar,
+id_item_orden_sin_aprobar_padre into #item_orden_sin_aprobar
+from item_orden_sin_aprobar
+group by item_orden_sin_aprobar.id_item_orden_sin_aprobar_padre
+
+select valor_pactado_cultivo.id_orden_pedido,
+max(id_valor_pactado_cultivo) as id_valor_pactado_cultivo into #valor_pactado_cultivo
+from valor_pactado_cultivo
+group by valor_pactado_cultivo.id_orden_pedido
+
+select valor_pactado,
+valor_pactado_cultivo.id_orden_pedido into #valor_pactado_cultivo2
+from valor_pactado_cultivo,
+#valor_pactado_cultivo
+where valor_pactado_cultivo.id_valor_pactado_cultivo = #valor_pactado_cultivo.id_valor_pactado_cultivo
+group by valor_pactado,
+valor_pactado_cultivo.id_orden_pedido
+
+select orden_pedido.id_orden_pedido,
+orden_pedido.idc_orden_pedido,
+cliente_despacho.idc_cliente_despacho,
+cliente_despacho.nombre_cliente,
+tipo_flor.idc_tipo_flor,
+tipo_flor.nombre_tipo_flor,
+variedad_flor.idc_variedad_flor,
+variedad_flor.nombre_variedad_flor,
+grado_flor.idc_grado_flor,
+grado_flor.nombre_grado_flor,
+farm.idc_farm,
+farm.nombre_farm,
+tapa.idc_tapa,
+tapa.nombre_tapa,
+transportador.idc_transportador,
+transportador.nombre_transportador,
+orden_pedido.fecha_inicial,
+orden_pedido.fecha_final,
+orden_pedido.marca,
+orden_pedido.unidades_por_pieza,
+orden_pedido.cantidad_piezas,
+orden_pedido.valor_unitario,
+tipo_caja.idc_tipo_caja,
+tipo_caja.nombre_tipo_caja,
+isnull(orden_pedido.comentario, '') as comentario,
+0 as con_version,
+tipo_factura.idc_tipo_factura,
+orden_pedido.fecha_creacion_orden,
+orden_pedido.disponible,
+color.idc_color,
+color.nombre_color,
+color.prioridad_color as orden_color,
+(
+	select valor_pactado
+	from #valor_pactado_cultivo2
+	where #valor_pactado_cultivo2.id_orden_pedido = orden_pedido.id_orden_pedido
+) as valor_pactado_cultivo,
+(
+	select o.idc_orden_pedido
+	from orden_pedido as o,
+	orden_pedido as op
+	where o.id_orden_pedido = op.id_orden_pedido_padre
+	and op.id_orden_pedido = orden_pedido.id_orden_pedido 
+) as idc_orden_pedido_padre,
+ 0 AS id_tipo_venta,
+vendedor.idc_vendedor,
+ltrim(rtrim(vendedor.nombre)) as nombre_vendedor into #temp
+from orden_pedido, 
+tipo_factura, 
+tipo_flor, 
+variedad_flor, 
+color,
+grado_flor, 
+farm, 
+tapa, 
+transportador, 
+tipo_caja, 
+cliente_despacho,
+cliente_factura,
+vendedor
+where cliente_factura.id_cliente_factura = cliente_despacho.id_cliente_factura
+and cliente_factura.id_vendedor = vendedor.id_vendedor
+and tipo_factura.id_tipo_factura = orden_pedido.id_tipo_factura
+and orden_pedido.id_variedad_flor = variedad_flor.id_variedad_flor
+and orden_pedido.id_grado_flor = grado_flor.id_grado_flor
+and tipo_flor.id_tipo_flor = variedad_flor.id_tipo_flor
+and tipo_flor.id_tipo_flor = grado_flor.id_tipo_flor
+and orden_pedido.id_farm = farm.id_farm
+and orden_pedido.id_tapa = tapa.id_tapa
+and orden_pedido.id_transportador = transportador.id_transportador
+and orden_pedido.id_tipo_caja = tipo_caja.id_tipo_caja
+and orden_pedido.id_despacho = cliente_despacho.id_despacho
+and variedad_flor.id_color = color.id_color
+and tipo_factura.idc_tipo_factura = '4'
+and orden_pedido.disponible > = @disponible
+and orden_pedido.fecha_inicial between
+convert(datetime,@fecha_inicial) and convert(datetime,@fecha_final)
+and cliente_despacho.idc_cliente_despacho > = 
+case 
+	when @idc_cliente_inicial = '' then '%%'
+	else @idc_cliente_inicial
+end
+and cliente_despacho.idc_cliente_despacho < = 
+case 
+	when @idc_cliente_final = '' then 'ZZZZZZZZZZ'
+	else @idc_cliente_final
+end
+and farm.idc_farm > = 
+case 
+	when @idc_farm_inicial = '' then '%%'
+	else @idc_farm_inicial
+end
+and farm.idc_farm < = 
+case 
+	when @idc_farm_final = '' then 'ZZZZZZZZZZ'
+	else @idc_farm_final
+end
+and CONVERT(INT,orden_pedido.idc_orden_pedido) > = 
+case 
+	when @idc_orden_pedido = '' then 0
+	else CONVERT(INT,@idc_orden_pedido)
+end
+and CONVERT(INT,orden_pedido.idc_orden_pedido) < = 
+case 
+	when @idc_orden_pedido = '' then 999999999999
+	else CONVERT(INT,@idc_orden_pedido)
+end
+
+select id_orden_pedido_padre, 
+max(id_orden_pedido) as id_orden_pedido, 
+count(*) as cantidad into #temp2
+from orden_pedido
+group by id_orden_pedido_padre
+
+update #temp
+set con_version = 1
+from #temp, 
+#temp2
+where #temp.id_orden_pedido = #temp2.id_orden_pedido
+and #temp2.cantidad > 1
+
+alter table #temp
+add id_item_orden_sin_aprobar int,
+idc_caja nvarchar(2),
+observacion_procurement nvarchar(1024),
+precio_finca decimal(20, 4)
+
+create table #pendiente
+(
+	id_item_orden_sin_aprobar int
+)
+
+insert into #pendiente (id_item_orden_sin_aprobar)
+select item_orden_sin_aprobar.id_item_orden_sin_aprobar
+from item_orden_sin_aprobar
+where exists
+(
+	select *
+	from #item_orden_sin_aprobar
+	where item_orden_sin_aprobar.id_item_orden_sin_aprobar = #item_orden_sin_aprobar.id_item_orden_sin_aprobar
+)
+and not exists
+(
+	select * 
+	from aprobacion_orden
+	where item_orden_sin_aprobar.id_item_orden_sin_aprobar = aprobacion_orden.id_item_orden_sin_aprobar
+)
+and not exists
+(
+	select * 
+	from solicitud_confirmacion_orden_especial
+	where item_orden_sin_aprobar.id_item_orden_sin_aprobar = solicitud_confirmacion_orden_especial.id_item_orden_sin_aprobar
+)
+
+insert into #pendiente (id_item_orden_sin_aprobar)
+select item_orden_sin_aprobar.id_item_orden_sin_aprobar
+from item_orden_sin_aprobar,
+solicitud_confirmacion_orden_especial
+where item_orden_sin_aprobar.id_item_orden_sin_aprobar = solicitud_confirmacion_orden_especial.id_item_orden_sin_aprobar
+and solicitud_confirmacion_orden_especial.aceptada = 1
+and exists
+(
+	select *
+	from #item_orden_sin_aprobar
+	where item_orden_sin_aprobar.id_item_orden_sin_aprobar = #item_orden_sin_aprobar.id_item_orden_sin_aprobar
+)
+and exists
+(
+	select *
+	from #solicitud_confirmacion_orden_especial
+	where solicitud_confirmacion_orden_especial.id_solicitud_confirmacion_orden_especial = #solicitud_confirmacion_orden_especial.id_solicitud_confirmacion_orden_especial
+)
+and not exists
+(
+	select *
+	from confirmacion_orden_especial_cultivo
+	where solicitud_confirmacion_orden_especial.id_solicitud_confirmacion_orden_especial = confirmacion_orden_especial_cultivo.id_solicitud_confirmacion_orden_especial
+)
+
+alter table #pendiente
+add id_item_orden_sin_aprobar_padre int
+
+update #pendiente
+set id_item_orden_sin_aprobar_padre = item_orden_sin_aprobar.id_item_orden_sin_aprobar_padre
+from item_orden_sin_aprobar
+where item_orden_sin_aprobar.id_item_orden_sin_aprobar = #pendiente.id_item_orden_sin_aprobar
+
+select max(orden_pedido.id_orden_pedido) as id_orden_pedido,
+item_orden_sin_aprobar.id_item_orden_sin_aprobar_padre,
+(
+	select #item_orden_sin_aprobar.id_item_orden_sin_aprobar
+	from #item_orden_sin_aprobar
+	where item_orden_sin_aprobar.id_item_orden_sin_aprobar_padre = #item_orden_sin_aprobar.id_item_orden_sin_aprobar_padre
+) as id_item_orden_sin_aprobar into #ordenes_pendientes
+from orden_pedido,
+orden_especial_confirmada,
+confirmacion_orden_especial_cultivo,
+solicitud_confirmacion_orden_especial,
+item_orden_sin_aprobar,
+#pendiente
+where orden_pedido.id_orden_pedido = orden_especial_confirmada.id_orden_pedido
+and orden_especial_confirmada.id_confirmacion_orden_especial_cultivo = confirmacion_orden_especial_cultivo.id_confirmacion_orden_especial_cultivo
+and solicitud_confirmacion_orden_especial.id_solicitud_confirmacion_orden_especial = confirmacion_orden_especial_cultivo.id_solicitud_confirmacion_orden_especial
+and item_orden_sin_aprobar.id_item_orden_sin_aprobar = solicitud_confirmacion_orden_especial.id_item_orden_sin_aprobar
+and item_orden_sin_aprobar.id_item_orden_sin_aprobar_padre = #pendiente.id_item_orden_sin_aprobar_padre
+group by item_orden_sin_aprobar.id_item_orden_sin_aprobar_padre
+
+update #temp
+set id_item_orden_sin_aprobar = #ordenes_pendientes.id_item_orden_sin_aprobar
+from #ordenes_pendientes
+where #ordenes_pendientes.id_orden_pedido = #temp.id_orden_pedido
+
+update #temp
+set id_item_orden_sin_aprobar = 0
+where id_item_orden_sin_aprobar is null
+
+update #temp
+set idc_caja = tipo_caja.idc_tipo_caja + caja.idc_caja,
+observacion_procurement = item_orden_sin_aprobar.observacion,
+precio_finca = 
+case
+	when item_orden_sin_aprobar.valor_pactado_interno is not null then item_orden_sin_aprobar.valor_pactado_interno
+	else item_orden_sin_aprobar.valor_pactado_cobol 
+end
+from caja,
+tipo_caja,
+item_orden_sin_aprobar,
+solicitud_confirmacion_orden_especial,
+confirmacion_orden_especial_cultivo,
+orden_especial_confirmada,
+orden_pedido
+where item_orden_sin_aprobar.id_caja = caja.id_caja
+and tipo_caja.id_tipo_caja = caja.id_tipo_caja
+and item_orden_sin_aprobar.id_item_orden_sin_aprobar = solicitud_confirmacion_orden_especial.id_item_orden_sin_aprobar
+and solicitud_confirmacion_orden_especial.id_solicitud_confirmacion_orden_especial = confirmacion_orden_especial_cultivo.id_solicitud_confirmacion_orden_especial
+and confirmacion_orden_especial_cultivo.id_confirmacion_orden_especial_cultivo = orden_especial_confirmada.id_confirmacion_orden_especial_cultivo
+and orden_especial_confirmada.id_orden_pedido = orden_pedido.id_orden_pedido
+and orden_pedido.id_orden_pedido = #temp.id_orden_pedido
+
+update #temp
+set idc_caja = ''
+where idc_caja is null
+
+select * 
+from #temp
+
+drop table #temp
+drop table #temp2
+drop table #valor_pactado_cultivo
+drop table #valor_pactado_cultivo2
+drop table #pendiente
+drop table #ordenes_pendientes
+drop table #item_orden_sin_aprobar
+drop table #solicitud_confirmacion_orden_especial

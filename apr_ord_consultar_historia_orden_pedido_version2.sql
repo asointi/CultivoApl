@@ -1,0 +1,44 @@
+set ANSI_NULLS ON
+set QUOTED_IDENTIFIER ON
+go
+
+create PROCEDURE [dbo].[apr_ord_consultar_historia_orden_pedido_version2]
+
+@idc_orden_pedido nvarchar(255)
+
+as
+
+declare @id_orden_pedido_padre int
+
+select @id_orden_pedido_padre = id_orden_pedido_padre
+from orden_pedido
+where idc_orden_pedido = @idc_orden_pedido
+
+select top 1 item_orden_sin_aprobar.id_item_orden_sin_aprobar
+from item_orden_sin_aprobar,
+aprobacion_orden,
+solicitud_confirmacion_orden,
+confirmacion_orden_cultivo,
+orden_confirmada,
+orden_pedido
+where item_orden_sin_aprobar.id_item_orden_sin_aprobar = aprobacion_orden.id_item_orden_sin_aprobar
+and aprobacion_orden.id_aprobacion_orden = solicitud_confirmacion_orden.id_aprobacion_orden
+and solicitud_confirmacion_orden.id_solicitud_confirmacion_orden = confirmacion_orden_cultivo.id_solicitud_confirmacion_orden
+and confirmacion_orden_cultivo.id_confirmacion_orden_cultivo = orden_confirmada.id_confirmacion_orden_cultivo
+and orden_pedido.id_orden_pedido = orden_confirmada.id_orden_pedido
+and orden_pedido.id_orden_pedido_padre = @id_orden_pedido_padre
+
+union all
+
+select top 1 item_orden_sin_aprobar.id_item_orden_sin_aprobar
+from item_orden_sin_aprobar,
+solicitud_confirmacion_orden_especial,
+confirmacion_orden_especial_cultivo,
+orden_especial_confirmada,
+orden_pedido
+where item_orden_sin_aprobar.id_item_orden_sin_aprobar = solicitud_confirmacion_orden_especial.id_item_orden_sin_aprobar
+and solicitud_confirmacion_orden_especial.id_solicitud_confirmacion_orden_especial = confirmacion_orden_especial_cultivo.id_solicitud_confirmacion_orden_especial
+and confirmacion_orden_especial_cultivo.id_confirmacion_orden_especial_cultivo = orden_especial_confirmada.id_confirmacion_orden_especial_cultivo
+and orden_especial_confirmada.id_orden_pedido = orden_pedido.id_orden_pedido
+and orden_pedido.id_orden_pedido_padre = @id_orden_pedido_padre
+order by item_orden_sin_aprobar.id_item_orden_sin_aprobar desc
