@@ -8,6 +8,8 @@ alter PROCEDURE [dbo].[apr_ord_consultar_comentarios]
 
 as
 
+set nocount on;
+
 declare @id_item_orden_sin_aprobar_padre int
 
 select @id_item_orden_sin_aprobar_padre = id_item_orden_sin_aprobar_padre 
